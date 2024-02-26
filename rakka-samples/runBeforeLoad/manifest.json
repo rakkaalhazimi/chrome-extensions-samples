@@ -1,0 +1,14 @@
+{
+  "name": "Before Load",
+  "description": "Run script before load",
+  "version": "1",
+  "manifest_version": 3,
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["script.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
