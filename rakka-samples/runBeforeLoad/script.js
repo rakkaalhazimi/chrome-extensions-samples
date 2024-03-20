@@ -1,3 +1,5 @@
+// TODO: Wrap class that have multiple constructor signatures
+
 console.log.nickname = "rakka";
 console.log("Extension loaded");
 console.log(console.log.nickname);
@@ -5,6 +7,8 @@ console.log(console.log.nickname);
 let mediaStreams = new Set();
 let bufferSources = [];
 let connectingNodes = [];
+let audioTracks = [];
+let currentPc;
 
 function wrapNativeFunction(nativeFunction, decorator) {
   return function () {
@@ -53,44 +57,87 @@ function createBufferSourceDecorator(nativeFunction, originalArguments) {
   return wrapped;
 }
 
-var nativeRTCPeerConnectionConstructor = RTCPeerConnection;
-function RTCPeerConnectionConstructor() {
+
+function createMediaElementSourceDecorator(nativeFunction, originalArguments) {
+  console.log("createElementSource wrapped by rakka.");
+  console.log("Arguments: ");
+  console.log(originalArguments);
+  console.log("");
+
+  let wrapped = nativeFunction.apply(this, originalArguments);
+  return wrapped;
+}
+
+
+function createMediaElementSourceDecorator(nativeFunction, originalArguments) {
+  console.log("createElementSource wrapped by rakka.");
+  console.log("Arguments: ");
+  console.log(originalArguments);
+  console.log("");
+
+  let wrapped = nativeFunction.apply(this, originalArguments);
+  return wrapped;
+}
+
+
+function addTrackDecorator(nativeFunction, originalArguments) {
+  
+  console.log("addTrack wrapped by rakka.");
+  let track = arguments[0];
+  audioTracks.push(track);
+  
+  let wrapped = nativeFunction.apply(this, originalArguments);
+  return wrapped;
+}
+
+
+let nativeRTCPeerConnectionConstructor = RTCPeerConnection;
+function RTCPeerConnectionConstructor(configuration) {
   console.log("Wrapped rtc peer connection");
-  let pc = new nativeRTCPeerConnectionConstructor();
+  console.log("Configuration: ", configuration);
+  let pc = new nativeRTCPeerConnectionConstructor(configuration);
+  currentPc = pc;
   return pc;
 }
 
-
-// Record mediastream
-function recordAudioStream(stream) {
+let nativeMediaStream = MediaStream;
+let mediaStreamCount = 0;
+function mediaStreamConstructor() {
+  console.log("Construct new mediastream: ", mediaStreamCount);
+  console.log("Argument: ");
+  console.log(arguments);
+  mediaStreamCount++;
   
-  let chunks = [];
-  let recorder = new MediaRecorder(stream);
-  recorder.ondataavailable((event) => {
-    if (event.data.size > 0) {
-      chunks.push(event.data);
-    }
-  });
+  let ms;
   
-  recorder.onstop = () => {
-    const blob = new Blob(chunks, {
-      type: 'audio/webm; codecs=opus',
-    });
-    chunks = [];
-
-    // const filename = `audio_channel_${index}_${Date.now()}.webm`;
-    const filename = `audio_${Date.now()}.webm`;
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    // a.style.display = 'none';
-    document.body.appendChild(a);
-    window.URL.revokeObjectURL(url);
-  };
+  if (arguments.length == 0) {
+    ms = new nativeMediaStream();
+    
+  } else {
+    let arg = arguments[0];
+    console.log("Argument type: ");
+    console.log(typeof arg);
+    ms = new nativeMediaStream(arg);
+  }
+  
+  mediaStreams.add(ms);
+  
+  return ms;
+  
+  
+  
+  
+  // let ms;
+  
+  // try {
+  //     ms = new nativeMediaStream();
+  //     throw Error("Debug");
+  // } catch(err) {
+  //   console.log("Error found");
+  //   console.error(err);
+  // }
+  // return ms;
 }
-
 
 
 // Override object's method
@@ -106,9 +153,21 @@ AudioContext.prototype.createBufferSource = wrapNativeFunction(
   AudioContext.prototype.createBufferSource, createBufferSourceDecorator
 );
 
+AudioContext.prototype.createMediaElementSource = wrapNativeFunction(
+  AudioContext.prototype.createMediaElementSource = createMediaElementSourceDecorator
+);
+
+MediaStream.prototype.addTrack = wrapNativeFunction(
+  MediaStream.prototype.addTrack, addTrackDecorator
+);
+
 // Override object's constructor
 RTCPeerConnection = RTCPeerConnectionConstructor;
-RTCPeerConnection.prototype = RTCPeerConnectionConstructor.prototype;
-RTCPeerConnection.prototype.constructor = RTCPeerConnection;
+// RTCPeerConnection.prototype = RTCPeerConnectionConstructor.prototype;
+// RTCPeerConnection.prototype.constructor = RTCPeerConnection;
+
+// MediaStream = mediaStreamConstructor;
+// MediaStream.prototype = nativeMediaStream.prototype;
+// MediaStream.prototype.constructor = MediaStream;
 
 let name = "rakka";
